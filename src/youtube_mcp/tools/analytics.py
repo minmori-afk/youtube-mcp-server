@@ -4,9 +4,15 @@ Provides access to channel and video performance metrics, audience data,
 traffic sources, and more via the YouTube Analytics API.
 """
 
+import os
 from datetime import date, timedelta
 
 from youtube_mcp.server import auth, mcp
+
+
+def _channel_ids_param() -> str:
+    channel_id = os.environ.get("YOUTUBE_MCP_CHANNEL_ID")
+    return f"channel=={channel_id}" if channel_id else "channel==MINE"
 
 
 def _default_date_range(days: int = 28) -> tuple[str, str]:
@@ -32,7 +38,7 @@ def _run_analytics_query(
         start_date, end_date = _default_date_range()
 
     params = {
-        "ids": "channel==MINE",
+        "ids": _channel_ids_param(),
         "startDate": start_date,
         "endDate": end_date,
         "metrics": metrics,
@@ -467,3 +473,70 @@ def youtube_analytics_retention(
         start_date=start_date,
         end_date=end_date,
     )
+
+
+@mcp.tool()
+def youtube_analytics_video_ctr(
+    video_id: str,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> dict:
+    """Get CTR (click-through rate) and impression data for a specific video.
+
+    Returns views, thumbnail impressions, and click rate. The API cannot return
+    these metrics alongside the video dimension, so this tool filters to one
+    video at a time.
+
+    Args:
+        video_id: YouTube video ID
+        start_date: Start date (YYYY-MM-DD). Defaults to 28 days ago.
+        end_date: End date (YYYY-MM-DD). Defaults to today.
+    """
+    data = _run_analytics_query(
+        metrics="views,videoThumbnailImpressions,videoThumbnailImpressionsClickRate",
+        filters=f"video=={video_id}",
+        start_date=start_date,
+        end_date=end_date,
+    )
+    rows = data.get("results", [])
+    detail = rows[0] if rows else {}
+    return {
+        "video_id": video_id,
+        "start_date": data.get("start_date"),
+        "end_date": data.get("end_date"),
+        **detail,
+    }
+
+
+@mcp.tool()
+def youtube_analytics_videos_ctr(
+    video_ids: list[str],
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> dict:
+    """Get CTR for multiple videos in a single call.
+
+    Makes one Analytics API request per video because the CTR metrics
+    (videoThumbnailImpressions, videoThumbnailImpressionsClickRate) cannot be
+    used with the `video` dimension. Use sparingly to preserve quota.
+
+    Args:
+        video_ids: List of YouTube video IDs
+        start_date: Start date (YYYY-MM-DD). Defaults to 28 days ago.
+        end_date: End date (YYYY-MM-DD). Defaults to today.
+    """
+    results = []
+    for vid in video_ids:
+        try:
+            data = _run_analytics_query(
+                metrics="views,videoThumbnailImpressions,videoThumbnailImpressionsClickRate",
+                filters=f"video=={vid}",
+                start_date=start_date,
+                end_date=end_date,
+            )
+            rows = data.get("results", [])
+            row = rows[0] if rows else {}
+            results.append({"video_id": vid, **row})
+        except Exception as e:
+            results.append({"video_id": vid, "error": str(e)})
+    return {"results": results, "total": len(results)}

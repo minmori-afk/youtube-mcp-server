@@ -1,7 +1,22 @@
 """Channel and video read tools."""
 
+import os
+
 from youtube_mcp.server import auth, mcp, quota
 from youtube_mcp.utils.formatting import format_video_summary
+
+
+def _resolve_mine_params(params: dict) -> None:
+    """If YOUTUBE_MCP_CHANNEL_ID is set, target that channel instead of `mine`.
+
+    Useful when one Google account has access to multiple brand channels and
+    the Data API's `mine=true` would otherwise default to the primary channel.
+    """
+    channel_id = os.environ.get("YOUTUBE_MCP_CHANNEL_ID")
+    if channel_id:
+        params["id"] = channel_id
+    else:
+        params["mine"] = True
 
 
 @mcp.tool()
@@ -22,7 +37,7 @@ def youtube_get_channel(
 
     params = {"part": "snippet,statistics,contentDetails,brandingSettings"}
     if mine:
-        params["mine"] = True
+        _resolve_mine_params(params)
     elif handle:
         params["forHandle"] = handle
     elif channel_id:
@@ -81,7 +96,7 @@ def youtube_list_videos(
         quota.consume("list")
         ch_params = {"part": "contentDetails"}
         if mine:
-            ch_params["mine"] = True
+            _resolve_mine_params(ch_params)
         elif channel_id:
             ch_params["id"] = channel_id
         else:
