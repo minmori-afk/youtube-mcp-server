@@ -17,10 +17,15 @@ def youtube_search(
     published_after: str | None = None,
     published_before: str | None = None,
     region_code: str | None = None,
+    page_token: str | None = None,
 ) -> dict:
     """Search YouTube for videos, channels, or playlists.
 
     Costs 100 quota units per call — use sparingly.
+
+    Search returns at most 50 results per call. To retrieve additional
+    pages, pass the ``next_page_token`` from a previous response back in
+    as ``page_token``.
 
     Args:
         query: Search query string
@@ -31,6 +36,8 @@ def youtube_search(
         published_after: ISO 8601 datetime (e.g., "2025-01-01T00:00:00Z")
         published_before: ISO 8601 datetime
         region_code: ISO 3166-1 alpha-2 country code (e.g., "US")
+        page_token: Token for fetching the next page of results
+            (from a previous response's ``next_page_token``)
     """
     quota.consume("search")
     youtube = auth.build_youtube_service()
@@ -51,6 +58,8 @@ def youtube_search(
         params["publishedBefore"] = published_before
     if region_code:
         params["regionCode"] = region_code
+    if page_token:
+        params["pageToken"] = page_token
 
     response = youtube.search().list(**params).execute()
 
@@ -79,6 +88,7 @@ def youtube_search(
     return {
         "results": results,
         "total_results": response.get("pageInfo", {}).get("totalResults", len(results)),
+        "next_page_token": response.get("nextPageToken"),
         "quota_cost": 100,
     }
 

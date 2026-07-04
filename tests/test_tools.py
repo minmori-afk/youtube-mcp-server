@@ -145,7 +145,31 @@ class TestSearch:
         assert len(result["results"]) == 1
         assert result["results"][0]["video_id"] == "vid1"
         assert result["quota_cost"] == 100
+        assert result["next_page_token"] is None
         mock_quota.consume.assert_called_once_with("search")
+
+    @patch("youtube_mcp.tools.search.auth")
+    @patch("youtube_mcp.tools.search.quota")
+    def test_search_pagination(self, mock_quota, mock_auth):
+        from youtube_mcp.tools.search import youtube_search
+
+        mock_yt = _make_mock_youtube()
+        mock_auth.build_youtube_service.return_value = mock_yt
+        list_mock = mock_yt.search().list
+        list_mock.reset_mock()
+        list_mock().execute.return_value = {
+            "items": [],
+            "pageInfo": {"totalResults": 250},
+            "nextPageToken": "CBQQAA",
+        }
+
+        result = youtube_search("test query", page_token="PREV_TOKEN")
+
+        # The token from YouTube is surfaced for the caller to page further.
+        assert result["next_page_token"] == "CBQQAA"
+        # The supplied page_token is forwarded to the API request.
+        _, kwargs = list_mock.call_args
+        assert kwargs["pageToken"] == "PREV_TOKEN"
 
 
 class TestAnalytics:
