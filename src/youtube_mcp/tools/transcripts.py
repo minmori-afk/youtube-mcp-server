@@ -66,7 +66,8 @@ def _get_transcript_scraping(video_id: str, language: str) -> dict:
         from youtube_transcript_api import YouTubeTranscriptApi
 
         try:
-            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            # youtube-transcript-api >= 1.0 uses an instance-based API
+            transcript_list = YouTubeTranscriptApi().list(video_id)
 
             # Try to find the requested language, fall back to auto-generated
             try:
@@ -81,17 +82,20 @@ def _get_transcript_scraping(video_id: str, language: str) -> dict:
                         pass  # Use whatever we have
 
             entries = transcript.fetch()
+            # >= 1.0 returns FetchedTranscript (snippet objects); to_raw_data() gives dicts
+            raw_entries = (
+                entries.to_raw_data() if hasattr(entries, "to_raw_data") else entries
+            )
             segments = []
             full_text_parts = []
-            for entry in entries:
+            for entry in raw_entries:
+                text = entry.get("text", "")
                 segments.append({
-                    "text": entry.get("text", entry.text if hasattr(entry, "text") else str(entry)),
-                    "start": entry.get("start", getattr(entry, "start", 0)),
-                    "duration": entry.get("duration", getattr(entry, "duration", 0)),
+                    "text": text,
+                    "start": entry.get("start", 0),
+                    "duration": entry.get("duration", 0),
                 })
-                full_text_parts.append(
-                    entry.get("text", entry.text if hasattr(entry, "text") else str(entry))
-                )
+                full_text_parts.append(text)
 
             return {
                 "video_id": video_id,
