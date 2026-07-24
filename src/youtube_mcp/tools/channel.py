@@ -146,11 +146,13 @@ def youtube_list_videos(
 
 
 @mcp.tool()
-def youtube_get_video(video_id: str) -> dict:
+def youtube_get_video(video_id: str, full_description: bool = False) -> dict:
     """Get detailed metadata and statistics for a specific video.
 
     Args:
         video_id: YouTube video ID (e.g., "dQw4w9WgXcQ")
+        full_description: If True, return the full untruncated description
+            (default truncates to 500 chars like list views)
     """
     quota.consume("list")
     youtube = auth.build_youtube_service()
@@ -167,6 +169,8 @@ def youtube_get_video(video_id: str) -> dict:
 
     video = items[0]
     summary = format_video_summary(video)
+    if full_description:
+        summary["description"] = video.get("snippet", {}).get("description", "")
 
     # Add extra detail fields not in the summary
     status = video.get("status", {})
