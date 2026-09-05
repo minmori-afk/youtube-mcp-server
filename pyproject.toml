@@ -33,6 +33,7 @@ dependencies = [
     "google-auth-oauthlib>=1.1.0",
     "google-auth-httplib2>=0.1.0",
     "youtube-transcript-api>=1.0.0,<2",
+    "requests>=2.31.0,<3",
 ]
 
 [project.optional-dependencies]
@@ -44,9 +45,10 @@ dev = [
 
 [project.scripts]
 youtube-studio-mcp = "youtube_mcp.server:main"
+instagram-studio-mcp = "instagram_mcp.server:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/youtube_mcp"]
+packages = ["src/youtube_mcp", "src/instagram_mcp"]
 
 [tool.ruff]
 target-version = "py311"

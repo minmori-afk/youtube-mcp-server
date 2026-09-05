@@ -258,6 +258,63 @@ Use `youtube_auth_status` to check current quota usage.
 | `YOUTUBE_MCP_CONFIG_DIR` | Config directory (default: `~/.youtube-mcp`) |
 | `YOUTUBE_API_KEY` | API key for public-only operations |
 
+## Instagram MCP Server
+
+The package also ships a second entry point, `instagram-studio-mcp`, for managing an
+**Instagram professional (business/creator) account** via the Instagram Graph API —
+so one install covers both your YouTube and Instagram management workflows.
+
+### Instagram Setup
+
+1. Convert your Instagram account to a **professional account** (business or creator) and link it to a Facebook Page.
+2. Create a Meta app at [developers.facebook.com](https://developers.facebook.com/) and add the **Instagram Graph API** product.
+3. In the [Graph API Explorer](https://developers.facebook.com/tools/explorer/), generate a user access token with the `instagram_basic`, `instagram_content_publish`, `instagram_manage_comments`, `instagram_manage_insights`, `pages_show_list`, and `pages_read_engagement` permissions, then [exchange it for a long-lived token](https://developers.facebook.com/docs/facebook-login/guides/access-tokens/get-long-lived).
+4. Find your Instagram account ID: `GET /me/accounts` → your Page → `?fields=instagram_business_account`.
+
+### Instagram Client Configuration
+
+```json
+{
+  "mcpServers": {
+    "instagram": {
+      "command": "instagram-studio-mcp",
+      "env": {
+        "INSTAGRAM_ACCESS_TOKEN": "your-long-lived-token",
+        "INSTAGRAM_BUSINESS_ACCOUNT_ID": "17890000000000000"
+      }
+    }
+  }
+}
+```
+
+Alternatively, store credentials at runtime with the `instagram_configure` tool
+(saved to `~/.instagram-mcp/config.json`).
+
+### Instagram Tools (21 tools)
+
+| Category | Tools |
+|----------|-------|
+| Auth & Setup | `instagram_auth_status`, `instagram_configure` |
+| Account & Insights | `instagram_get_account`, `instagram_get_account_insights`, `instagram_get_audience_demographics` |
+| Media | `instagram_list_media`, `instagram_get_media`, `instagram_get_media_insights`, `instagram_list_stories` |
+| Publishing | `instagram_publish_photo`, `instagram_publish_reel`, `instagram_publish_carousel`, `instagram_publish_story`, `instagram_get_publishing_limit` |
+| Comments | `instagram_list_comments`, `instagram_post_comment`, `instagram_reply_to_comment`, `instagram_hide_comment`, `instagram_delete_comment` |
+| Hashtags | `instagram_search_hashtag`, `instagram_get_hashtag_media` |
+
+Publishing notes: media must be hosted at a **publicly accessible URL** (Instagram
+downloads it server-side), and the Graph API allows up to **100 published posts per
+24 hours** (check with `instagram_get_publishing_limit`).
+
+### Instagram Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `INSTAGRAM_ACCESS_TOKEN` | Long-lived Meta Graph API user access token |
+| `INSTAGRAM_BUSINESS_ACCOUNT_ID` | Instagram professional account ID |
+| `INSTAGRAM_MCP_CONFIG_DIR` | Config directory (default: `~/.instagram-mcp`) |
+| `INSTAGRAM_GRAPH_API_VERSION` | Graph API version (default: `v23.0`) |
+| `INSTAGRAM_GRAPH_BASE_URL` | Graph API base URL (default: `https://graph.facebook.com`) |
+
 ## Development
 
 ```bash
