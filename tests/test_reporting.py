@@ -116,6 +116,29 @@ class TestDownload:
         assert "date,views,watch_time" in result["content"]
 
     @patch("youtube_mcp.tools.reporting.auth")
+    @patch("youtube_mcp.tools.reporting.urllib.request.urlopen")
+    def test_download_save_path(self, mock_urlopen, mock_auth, tmp_path):
+        from youtube_mcp.tools.reporting import youtube_reporting_download
+
+        mock_creds = MagicMock()
+        mock_creds.token = "test-token"
+        mock_auth.credentials = mock_creds
+
+        mock_resp = MagicMock()
+        csv_content = "date,views\n" + "\n".join(f"2026-01-{i:02d},{i}" for i in range(1, 31)) + "\n"
+        mock_resp.read.return_value = csv_content.encode("utf-8")
+        mock_urlopen.return_value = mock_resp
+
+        target = tmp_path / "sub" / "report.csv"
+        result = youtube_reporting_download("https://example.com/report.csv", save_path=str(target))
+        assert result["row_count"] == 30
+        assert result["truncated"] is False
+        assert result["saved_to"] == str(target)
+        assert target.read_text(encoding="utf-8") == csv_content
+        assert "content" not in result
+        assert result["preview"].startswith("date,views")
+
+    @patch("youtube_mcp.tools.reporting.auth")
     @patch("youtube_mcp.tools.reporting.urllib.request.urlopen", side_effect=Exception("timeout"))
     def test_download_error(self, mock_urlopen, mock_auth):
         from youtube_mcp.tools.reporting import youtube_reporting_download

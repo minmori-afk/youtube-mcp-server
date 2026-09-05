@@ -5,6 +5,7 @@ Workflow: list report types -> create a job -> wait for reports to generate -> d
 Reports are generated daily and available for 60 days.
 """
 
+import os
 import urllib.request
 
 from youtube_mcp.server import auth, mcp
@@ -105,14 +106,19 @@ def youtube_reporting_list_reports(job_id: str) -> dict:
 
 
 @mcp.tool()
-def youtube_reporting_download(download_url: str) -> dict:
+def youtube_reporting_download(download_url: str, save_path: str | None = None) -> dict:
     """Download a report CSV.
 
     Returns the CSV content as text. For large reports, the content
-    may be truncated.
+    may be truncated (50,000 chars). Pass ``save_path`` to write the FULL
+    report to a local file instead; the response then carries the path,
+    the byte count and only a short preview, so daily reports of 1,000+
+    rows (e.g. channel_basic_a3) are never cut.
 
     Args:
         download_url: Download URL from youtube_reporting_list_reports
+        save_path: Optional local file path (``~`` allowed). Parent
+            directories are created. Existing file is overwritten.
     """
     credentials = auth.credentials
     headers = {"Authorization": f"Bearer {credentials.token}"}
@@ -126,6 +132,20 @@ def youtube_reporting_download(download_url: str) -> dict:
         lines = content.strip().split("\n")
         header = lines[0] if lines else ""
         row_count = len(lines) - 1 if len(lines) > 1 else 0
+
+        if save_path:
+            path = os.path.abspath(os.path.expanduser(save_path))
+            os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(content)
+            return {
+                "columns": header,
+                "row_count": row_count,
+                "truncated": False,
+                "saved_to": path,
+                "bytes": len(content.encode("utf-8")),
+                "preview": "\n".join(lines[:6]),
+            }
 
         # Truncate if very large
         max_chars = 50_000
